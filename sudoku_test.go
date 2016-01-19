@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"sort"
 	"testing"
 )
@@ -17,5 +18,21 @@ func TestNewSudokuBoard(t *testing.T) {
 				t.Errorf("expected 0 got %v", s.board[i][j])
 			}
 		}
+	}
+}
+
+func TestFixRow(t *testing.T) {
+	n := 4
+	s := New(n)
+	s.board[2] = []int{3, 3, 2, 2}
+	row := s.board[2]
+	s.fixRow(2)
+	fixedRow1 := []int{3, 1, 2, 4}
+	fixedRow2 := []int{3, 4, 2, 1}
+	if !(reflect.DeepEqual(row, fixedRow1) || reflect.DeepEqual(row, fixedRow2)) {
+		t.Errorf("did not replace all twos: %v", row)
+	}
+	if !s.modified {
+		t.Errorf("expected %t but got %t", true, false)
 	}
 }
