@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 )
 
 type Sudoku struct {
@@ -41,13 +42,16 @@ func New(n int) *Sudoku {
 // Formula: iNdex = k: rows (k/N)*N : (add N to prev result) cols: (k %N) *N : (add N to previous result)
 // where N = sqrt(n)
 func (s *Sudoku) PopulateSquare(squareIndex int) {
+	defer wg.Done()
 	// permute the indices ( )
 	// so don't need to add 1 every time
 	permute_indices := rand.Perm(s.n)
+
 	N := int(math.Sqrt(float64(s.n)))
 	row_index := (squareIndex / N) * N
 	col_index := (squareIndex % N) * N
 	row_slice := s.board[row_index : row_index+N]
+
 	for i := range row_slice {
 		for j := col_index; j < col_index+N; j++ {
 			row_slice[i][j] = s.digits[permute_indices[N*i+(j%N)]]
@@ -55,16 +59,23 @@ func (s *Sudoku) PopulateSquare(squareIndex int) {
 	}
 }
 
+// FixRow(i) // change all but first conflict
+// FixColumn(i) //change all but last conflict
 func (s *Sudoku) DisplayBoard() {
 	for i := range s.board {
 		fmt.Printf("%v\n", s.board[i])
 	}
 }
 
+var wg sync.WaitGroup
+
 func main() {
-	s := New(9)
+	s := New(16)
 	for i := 0; i < s.n; i++ {
-		s.PopulateSquare(i)
+		wg.Add(1)
+		go s.PopulateSquare(i)
 	}
+	wg.Wait()
+
 	s.DisplayBoard()
 }
