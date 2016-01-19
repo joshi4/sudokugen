@@ -66,12 +66,23 @@ func (s *Sudoku) PopulateSquare(squareIndex int) {
 }
 
 // FixRow(i) // change all but first conflict
-func (s *Sudoku) FixRows() {
+func (s *Sudoku) FixRows(flag bool) {
 	for i := 0; i < s.n; i++ {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			s.fixRow(index)
+			s.fixRow(index, flag)
+		}(i)
+	}
+	wg.Wait()
+}
+
+func (s *Sudoku) FixCols(flag bool) {
+	for i := 0; i < s.n; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			s.fixCol(index, flag)
 		}(i)
 	}
 	wg.Wait()
@@ -93,7 +104,7 @@ func (s *Sudoku) FixRows() {
 //
 // Note: fixColumn will change all but last conflict
 // This convention is important to avoid being stuck indefinitely by changes that cancel each other out.
-func (s *Sudoku) fixRow(rowIndex int) {
+func (s *Sudoku) fixRow(rowIndex int, flag bool) {
 	// map of digit to all indices it is repeated in
 	digitCount := make(map[int][]int)
 	missingDigits := make([]int, 0)
@@ -119,8 +130,56 @@ func (s *Sudoku) fixRow(rowIndex int) {
 	randomIndexes := rand.Perm(len(missingDigits))
 	index := 0
 	for repeatedDigit, _ := range repeatedDigits {
-		for _, indexToReplace := range digitCount[repeatedDigit][1:] {
+		loopSlice := digitCount[repeatedDigit][1:]
+		if flag {
+			loopSlice = digitCount[repeatedDigit][:len(digitCount[repeatedDigit])-1]
+		}
+		for _, indexToReplace := range loopSlice {
 			row[indexToReplace] = missingDigits[randomIndexes[index]]
+			index += 1
+			if !s.modified {
+				s.modified = true
+			}
+		}
+	}
+}
+
+func (s *Sudoku) fixCol(colIndex int, flag bool) {
+	// map of digit to all indices it is repeated in
+	digitCount := make(map[int][]int)
+	// key: digit; value which rows it is present in
+	missingDigits := make([]int, 0)
+	repeatedDigits := make(map[int]struct{})
+
+	for rowIndex := 0; rowIndex < s.n; rowIndex++ {
+		digit := s.board[rowIndex][colIndex]
+
+		if _, ok := digitCount[digit]; !ok {
+			digitCount[digit] = make([]int, 0)
+		} else if len(digitCount[digit]) >= 1 {
+			repeatedDigits[digit] = struct{}{}
+		}
+		digitCount[digit] = append(digitCount[digit], rowIndex)
+	}
+
+	for _, digit := range s.digits {
+		if _, ok := digitCount[digit]; !ok {
+			missingDigits = append(missingDigits, digit)
+		}
+	}
+
+	randomIndexes := rand.Perm(len(missingDigits))
+	index := 0
+	for repeatedDigit, _ := range repeatedDigits {
+		repeatedDigitRowSlice := digitCount[repeatedDigit]
+		sliceLen := len(repeatedDigitRowSlice)
+		loopSlice := repeatedDigitRowSlice[:sliceLen-1]
+		if flag {
+			loopSlice = repeatedDigitRowSlice[1:]
+		}
+
+		for _, indexToReplace := range loopSlice {
+			s.board[indexToReplace][colIndex] = missingDigits[randomIndexes[index]]
 			index += 1
 
 			if !s.modified {
@@ -138,6 +197,21 @@ func (s *Sudoku) DisplayBoard() {
 
 var wg sync.WaitGroup
 
+func (s *Sudoku) Generate() {
+	iter := 0
+	flag := false
+	for {
+		s.modified = false
+		s.FixRows(flag)
+		s.FixCols(flag)
+		flag = !flag
+		if !s.modified {
+			return
+		}
+		iter++
+		// fmt.Printf("iter = %d\n\n", iter)
+	}
+}
 func main() {
 	s := New(4)
 	for i := 0; i < s.n; i++ {
@@ -150,7 +224,9 @@ func main() {
 	wg.Wait()
 
 	s.DisplayBoard()
-	s.FixRows()
+	s.Generate()
+	// s.FixRows()
+	// s.FixCols()
 	fmt.Println()
 	s.DisplayBoard()
 }
