@@ -198,7 +198,6 @@ func (s *Sudoku) DisplayBoard() {
 var wg sync.WaitGroup
 
 func (s *Sudoku) Generate() {
-	iter := 0
 	flag := false
 	for {
 		s.modified = false
@@ -208,8 +207,6 @@ func (s *Sudoku) Generate() {
 		if !s.modified {
 			return
 		}
-		iter++
-		// fmt.Printf("iter = %d\n\n", iter)
 	}
 }
 func main() {
@@ -225,8 +222,6 @@ func main() {
 
 	s.DisplayBoard()
 	s.Generate()
-	// s.FixRows()
-	// s.FixCols()
 	fmt.Println()
 	s.DisplayBoard()
 }
